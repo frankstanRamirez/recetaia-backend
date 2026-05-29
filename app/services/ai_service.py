@@ -7,13 +7,13 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 
 async def _openrouter_post(prompt: str, max_tokens: int = 1000) -> str:
-    api_key = os.getenv("GEMINI_API_KEY", "")
+    api_key = os.getenv("OPENROUTER_API_KEY", "")
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
     }
     body = {
-        "model": "google/gemini-flash-1.5",
+        "model": "google/gemma-3-27b-it:free",
         "max_tokens": max_tokens,
         "messages": [{"role": "user", "content": prompt}]
     }
@@ -31,7 +31,7 @@ async def detectar_ingredientes(imagen_base64: str, mime_type: str) -> List[str]
         "Content-Type": "application/json"
     }
     body = {
-        "model": "google/gemini-flash-1.5",
+        "model": "google/gemma-3-27b-it:free",
         "max_tokens": 500,
         "messages": [{
             "role": "user",
