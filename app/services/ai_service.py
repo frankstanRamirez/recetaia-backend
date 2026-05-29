@@ -4,7 +4,7 @@ import httpx
 from typing import List
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-MODEL = "llama3-8b-8192"
+MODEL = "llama-3.1-8b-instant"
 
 
 async def _call_ai(messages: list, max_tokens: int = 1500) -> str:
