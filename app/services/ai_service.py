@@ -23,6 +23,7 @@ async def _gemini_post(prompt: str, max_tokens: int = 1000) -> str:
 
 
 async def detectar_ingredientes(imagen_base64: str, mime_type: str) -> List[str]:
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
     GEMINI_VISION_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
     headers = {"Content-Type": "application/json"}
     params = {"key": GEMINI_API_KEY}
