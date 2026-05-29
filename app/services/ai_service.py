@@ -3,44 +3,49 @@ import json
 import httpx
 from typing import List
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 
-async def _gemini_post(prompt: str, max_tokens: int = 1000) -> str:
-    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-    headers = {"Content-Type": "application/json"}
-    params = {"key": GEMINI_API_KEY}
+async def _openrouter_post(prompt: str, max_tokens: int = 1000) -> str:
+    api_key = os.getenv("GEMINI_API_KEY", "")
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
     body = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.7, "maxOutputTokens": max_tokens}
+        "model": "google/gemini-flash-1.5",
+        "max_tokens": max_tokens,
+        "messages": [{"role": "user", "content": prompt}]
     }
     async with httpx.AsyncClient(timeout=40) as client:
-        resp = await client.post(GEMINI_URL, headers=headers, params=params, json=body)
+        resp = await client.post(OPENROUTER_URL, headers=headers, json=body)
         resp.raise_for_status()
         data = resp.json()
-        return data["candidates"][0]["content"]["parts"][0]["text"].strip()
+        return data["choices"][0]["message"]["content"].strip()
 
 
 async def detectar_ingredientes(imagen_base64: str, mime_type: str) -> List[str]:
-    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-    GEMINI_VISION_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
-    headers = {"Content-Type": "application/json"}
-    params = {"key": GEMINI_API_KEY}
+    api_key = os.getenv("GEMINI_API_KEY", "")
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
     body = {
-        "contents": [{
-            "parts": [
-                {"inline_data": {"mime_type": mime_type, "data": imagen_base64}},
-                {"text": "Analiza la imagen y devuelve SOLO un JSON válido sin backticks: {\"ingredientes\":[\"ingrediente1\",\"ingrediente2\"]}. Máximo 10 ingredientes en español."}
+        "model": "google/gemini-flash-1.5",
+        "max_tokens": 500,
+        "messages": [{
+            "role": "user",
+            "content": [
+                {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{imagen_base64}"}},
+                {"type": "text", "text": "Analiza la imagen y devuelve SOLO un JSON válido sin backticks: {\"ingredientes\":[\"ingrediente1\",\"ingrediente2\"]}. Máximo 10 ingredientes en español."}
             ]
-        }],
-        "generationConfig": {"temperature": 0.3, "maxOutputTokens": 500}
+        }]
     }
     async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.post(GEMINI_VISION_URL, headers=headers, params=params, json=body)
+        resp = await client.post(OPENROUTER_URL, headers=headers, json=body)
         resp.raise_for_status()
         data = resp.json()
-        text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+        text = data["choices"][0]["message"]["content"].strip()
         parsed = json.loads(text)
         return parsed.get("ingredientes", [])
 
@@ -70,6 +75,6 @@ async def generar_recetas(ingredientes: List[str], filtros: dict = {}) -> List[d
         "Genera exactamente 4 recetas variadas y deliciosas."
     )
 
-    text = await _gemini_post(prompt, max_tokens=1500)
+    text = await _openrouter_post(prompt, max_tokens=1500)
     parsed = json.loads(text)
     return parsed.get("recetas", [])
