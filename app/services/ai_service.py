@@ -4,18 +4,21 @@ import httpx
 from typing import List
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+MODEL = "google/gemma-3-27b-it:free"
 
 
-async def _openrouter_post(prompt: str, max_tokens: int = 1000) -> str:
+async def _call_ai(messages: list, max_tokens: int = 1500) -> str:
     api_key = os.getenv("OPENROUTER_API_KEY", "")
     headers = {
         "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://recetaia.app",
+        "X-Title": "RecetaIA"
     }
     body = {
-        "model": "google/gemma-3-27b-it:free",
+        "model": MODEL,
         "max_tokens": max_tokens,
-        "messages": [{"role": "user", "content": prompt}]
+        "messages": messages
     }
     async with httpx.AsyncClient(timeout=40) as client:
         resp = await client.post(OPENROUTER_URL, headers=headers, json=body)
@@ -25,29 +28,16 @@ async def _openrouter_post(prompt: str, max_tokens: int = 1000) -> str:
 
 
 async def detectar_ingredientes(imagen_base64: str, mime_type: str) -> List[str]:
-    api_key = os.getenv("OPENROUTER_API_KEY", "")
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-    body = {
-        "model": "google/gemma-3-27b-it:free",
-        "max_tokens": 500,
-        "messages": [{
-            "role": "user",
-            "content": [
-                {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{imagen_base64}"}},
-                {"type": "text", "text": "Analiza la imagen y devuelve SOLO un JSON válido sin backticks: {\"ingredientes\":[\"ingrediente1\",\"ingrediente2\"]}. Máximo 10 ingredientes en español."}
-            ]
-        }]
-    }
-    async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.post(OPENROUTER_URL, headers=headers, json=body)
-        resp.raise_for_status()
-        data = resp.json()
-        text = data["choices"][0]["message"]["content"].strip()
-        parsed = json.loads(text)
-        return parsed.get("ingredientes", [])
+    messages = [{
+        "role": "user",
+        "content": [
+            {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{imagen_base64}"}},
+            {"type": "text", "text": "Analiza la imagen y devuelve SOLO JSON sin backticks: {\"ingredientes\":[\"ingrediente1\",\"ingrediente2\"]}. Máximo 10 ingredientes en español."}
+        ]
+    }]
+    text = await _call_ai(messages, max_tokens=500)
+    parsed = json.loads(text)
+    return parsed.get("ingredientes", [])
 
 
 async def generar_recetas(ingredientes: List[str], filtros: dict = {}) -> List[dict]:
@@ -63,18 +53,15 @@ async def generar_recetas(ingredientes: List[str], filtros: dict = {}) -> List[d
 
     prompt = (
         "Eres un chef profesional latinoamericano. "
-        "Devuelve SOLO un JSON válido sin backticks con este formato exacto: "
+        "Devuelve SOLO JSON sin backticks con este formato: "
         "{\"recetas\":[{\"nombre\":\"...\",\"emoji\":\"🍳\",\"tiempo_min\":20,\"porciones\":2,"
-        "\"dificultad\":\"facil\",\"tags\":\"rapido,vegetariano\","
-        "\"match_pct\":90,"
-        "\"ingredientes\":[\"ing1\",\"ing2\"],"
-        "\"pasos\":[\"paso1\",\"paso2\"]}]}. "
-        "Tags válidos: rapido, vegetariano, proteina. "
-        "match_pct es qué porcentaje de ingredientes el usuario ya tiene (0-100). "
-        f"Ingredientes disponibles: {', '.join(ingredientes)}. {filtros_texto}"
-        "Genera exactamente 4 recetas variadas y deliciosas."
+        "\"dificultad\":\"facil\",\"tags\":\"rapido\",\"match_pct\":90,"
+        "\"ingredientes\":[\"ing1\"],\"pasos\":[\"paso1\"]}]}. "
+        f"Ingredientes: {', '.join(ingredientes)}. {filtros_texto} "
+        "Genera exactamente 4 recetas."
     )
 
-    text = await _openrouter_post(prompt, max_tokens=1500)
+    messages = [{"role": "user", "content": prompt}]
+    text = await _call_ai(messages, max_tokens=1500)
     parsed = json.loads(text)
     return parsed.get("recetas", [])
