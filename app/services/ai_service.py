@@ -8,6 +8,7 @@ GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5
 
 
 async def _gemini_post(prompt: str, max_tokens: int = 1000) -> str:
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
     headers = {"Content-Type": "application/json"}
     params = {"key": GEMINI_API_KEY}
     body = {
