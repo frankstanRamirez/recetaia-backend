@@ -25,7 +25,7 @@ async def _openrouter_post(prompt: str, max_tokens: int = 1000) -> str:
 
 
 async def detectar_ingredientes(imagen_base64: str, mime_type: str) -> List[str]:
-    api_key = os.getenv("GEMINI_API_KEY", "")
+    api_key = os.getenv("OPENROUTER_API_KEY", "")
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
