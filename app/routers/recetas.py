@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException
 from typing import List
 from app.database import get_connection
 from app.models.schemas import RecetaOut, BuscarRecetasRequest, HistorialCreate, HistorialOut
-from app.services.ai_service import generar_recetas
+from app.services.ai_service import generar_recetas, generar_recetas_populares
 
 router = APIRouter()
 
@@ -12,18 +12,25 @@ router = APIRouter()
 async def buscar_recetas(data: BuscarRecetasRequest):
     """
     Recibe lista de ingredientes y filtros.
-    Usa IA para generar recetas personalizadas.
-    También guarda las recetas generadas en la base de datos.
+    - Si hay ingredientes: genera recetas personalizadas con IA.
+    - Si NO hay ingredientes: devuelve recetas populares sugeridas con imágenes.
     """
-    if not data.ingredientes:
-        raise HTTPException(status_code=400, detail="Debes enviar al menos un ingrediente.")
-
     try:
-        recetas_ia = await generar_recetas(data.ingredientes, data.filtros or {})
+        if data.ingredientes:
+            # Flujo normal: recetas basadas en ingredientes del usuario
+            recetas_ia = await generar_recetas(data.ingredientes, data.filtros or {})
+            modo = "personalizado"
+            ingredientes_usados = data.ingredientes
+        else:
+            # Sin ingredientes: sugerencias populares con imágenes
+            recetas_ia = await generar_recetas_populares(data.filtros or {})
+            modo = "sugerencias_populares"
+            ingredientes_usados = []
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al generar recetas con IA: {str(e)}")
 
-    # Guardar recetas en la BD para historial
+    # Guardar recetas en la BD
     conn = get_connection()
     recetas_guardadas = []
     for r in recetas_ia:
@@ -51,7 +58,14 @@ async def buscar_recetas(data: BuscarRecetasRequest):
     return {
         "recetas": recetas_guardadas,
         "total": len(recetas_guardadas),
-        "ingredientes_usados": data.ingredientes,
+        "ingredientes_usados": ingredientes_usados,
+        "modo": modo,
+        # Mensaje amigable para mostrar en la app
+        "mensaje": (
+            "Recetas basadas en tus ingredientes 🎯"
+            if modo == "personalizado"
+            else "¡Aquí tienes recetas populares para inspirarte! 🌟"
+        ),
     }
 
 
@@ -77,7 +91,6 @@ def obtener_receta(receta_id: int):
     if not row:
         raise HTTPException(status_code=404, detail="Receta no encontrada.")
     r = dict(row)
-    # Parsear JSON strings a listas para mejor respuesta
     try:
         r["ingredientes"] = json.loads(r["ingredientes"])
         r["pasos"] = json.loads(r["pasos"])
