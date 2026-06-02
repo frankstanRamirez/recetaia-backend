@@ -1,4 +1,4 @@
-# 🥗 RecetaIA — Backend
+#  RecetaIA — Backend
 
 **Proyecto Integrador — Complejo Educativo Pedro F. Cantor**  
 Integrantes: Sofia Batres · Nayeli Herrera · Nancy Hernández · Ingrid Bautista · Karla Siguenza
